@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sykkel eller buss?</title>
+  <meta name="description" content="Should you take a city bike or public transport in Oslo right now? A live race using open data from Oslo Bysykkel and Entur.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚲</text></svg>">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <aside class="panel">
+    <header>
+      <h1>Sykkel eller buss?</h1>
+      <p class="tagline">Bike or bus? Live race across Oslo, right now.</p>
+    </header>
+
+    <form id="trip-form" autocomplete="off">
+      <div class="field">
+        <label for="from-input"><span class="pin pin-from">A</span> From</label>
+        <div class="input-row">
+          <input id="from-input" type="text" placeholder="Search an address or click the map">
+          <button type="button" id="locate-btn" class="icon-btn" title="Use my location" aria-label="Use my location">📍</button>
+        </div>
+        <ul class="suggestions" id="from-suggestions" role="listbox"></ul>
+      </div>
+
+      <div class="field">
+        <label for="to-input"><span class="pin pin-to">B</span> To</label>
+        <div class="input-row">
+          <input id="to-input" type="text" placeholder="Search an address or click the map">
+          <button type="button" id="swap-btn" class="icon-btn" title="Swap from and to" aria-label="Swap from and to">⇅</button>
+        </div>
+        <ul class="suggestions" id="to-suggestions" role="listbox"></ul>
+      </div>
+
+      <div class="field">
+        <label for="speed-select">How fast do you bike?</label>
+        <select id="speed-select">
+          <option value="12">🐢 Relaxed (12 km/h)</option>
+          <option value="16" selected>🚴 Normal (16 km/h)</option>
+          <option value="21">🚀 Late for class (21 km/h)</option>
+        </select>
+      </div>
+
+      <button type="submit" id="race-btn" class="primary" disabled>Start the race!</button>
+    </form>
+
+    <p id="status" class="status" role="status"></p>
+
+    <section id="results" hidden>
+      <div id="verdict" class="verdict"></div>
+      <div class="race-clock">
+        <span>Race clock</span>
+        <strong id="clock">0:00</strong>
+        <button type="button" id="replay-btn" class="link-btn">↻ Replay</button>
+      </div>
+      <ol id="racer-cards" class="racer-cards"></ol>
+    </section>
+
+    <footer>
+      Live data from <a href="https://oslobysykkel.no/apne-data" target="_blank" rel="noopener">Oslo Bysykkel</a>
+      and <a href="https://developer.entur.org" target="_blank" rel="noopener">Entur</a>.
+      Not affiliated with either. School project, DAVE3625.
+    </footer>
+  </aside>
+
+  <main id="map" aria-label="Map of Oslo"></main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
