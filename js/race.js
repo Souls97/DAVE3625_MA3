@@ -2,7 +2,7 @@
 import { fetchStations, fetchTrip } from './api.js';
 import {
   UNLOCK_SEC, DOCK_SEC, nearestStation, sequentialTimeline, enturTimeline,
-  pickBestTransit, rideSeconds, finishTime, decodePolyline, formatDuration, formatClock, escapeHtml,
+  pickBestTransit, travelSeconds, finishTime, decodePolyline, formatDuration, formatClock, escapeHtml,
 } from './logic.js';
 
 const MODE_ICON = {
@@ -15,13 +15,13 @@ const legCoords = (pattern) =>
   pattern.legs.flatMap((l) => (l.pointsOnLink ? decodePolyline(l.pointsOnLink.points) : []));
 
 // Walking trip between two points, as a single timeline step.
-async function walkStep(from, to, label) {
-  const [pattern] = await fetchTrip(from, to, 'foot');
+async function walkStep(from, to, label, walkKmh) {
+  const [pattern] = await fetchTrip(from, to, 'foot', walkKmh);
   if (!pattern) throw new Error('No walking route found');
   return { duration: pattern.duration, coords: legCoords(pattern), mode: 'foot', label, distance: pattern.distance };
 }
 
-async function bikeRacer(from, to, stations, kmh) {
+async function bikeRacer(from, to, stations, { bikeKmh, walkKmh }) {
   const pickup = nearestStation(stations, from, (s) => s.renting && s.bikes > 0);
   const dropoff = nearestStation(stations, to, (s) => s.returning && s.docks > 0);
   if (!pickup) throw new Error('No Bysykkel station with bikes within 1.5 km of the start');
@@ -31,9 +31,9 @@ async function bikeRacer(from, to, stations, kmh) {
   if (a.id === b.id) throw new Error('Start and destination share the same station, so just walk!');
 
   const [walk1, ridePatterns, walk2] = await Promise.all([
-    walkStep(from, a, `Walk to ${a.name}`),
+    walkStep(from, a, `Walk to ${a.name}`, walkKmh),
     fetchTrip(a, b, 'bicycle'),
-    walkStep(b, to, 'Walk to destination'),
+    walkStep(b, to, 'Walk to destination', walkKmh),
   ]);
   const ride = ridePatterns[0];
   if (!ride) throw new Error('No cycling route found between the stations');
@@ -42,22 +42,22 @@ async function bikeRacer(from, to, stations, kmh) {
   const timeline = sequentialTimeline([
     walk1,
     { duration: UNLOCK_SEC, coords: at(a), mode: 'wait', label: 'Unlock bike' },
-    { duration: rideSeconds(ride.distance, kmh), coords: legCoords(ride), mode: 'bicycle', label: `Ride to ${b.name}`, distance: ride.distance },
+    { duration: travelSeconds(ride.distance, bikeKmh), coords: legCoords(ride), mode: 'bicycle', label: `Ride to ${b.name}`, distance: ride.distance },
     { duration: DOCK_SEC, coords: at(b), mode: 'wait', label: 'Dock bike' },
     walk2,
   ]);
   const steps = [
     `🚶 Walk ${formatDuration(walk1.duration)} to <b>${aName}</b> (${a.bikes} ${a.bikes === 1 ? 'bike' : 'bikes'} available)`,
     `🔓 Unlock bike (${UNLOCK_SEC} s)`,
-    `🚲 Ride ${(ride.distance / 1000).toFixed(1)} km at ${kmh} km/h, ${formatDuration(timeline[2].end - timeline[2].start)}`,
+    `🚲 Ride ${(ride.distance / 1000).toFixed(1)} km at ${bikeKmh} km/h, ${formatDuration(timeline[2].end - timeline[2].start)}`,
     `🅿️ Dock at <b>${bName}</b> (${b.docks} free ${b.docks === 1 ? 'dock' : 'docks'})`,
     `🚶 Walk ${formatDuration(walk2.duration)} to destination`,
   ];
   return { timeline, steps, stations: [a, b] };
 }
 
-async function transitRacer(from, to, now) {
-  const pattern = pickBestTransit(await fetchTrip(from, to, 'transit'));
+async function transitRacer(from, to, now, walkKmh) {
+  const pattern = pickBestTransit(await fetchTrip(from, to, 'transit', walkKmh));
   if (!pattern) throw new Error('No public transport route found right now');
   const timeline = enturTimeline(pattern, now);
   const steps = pattern.legs.map((l) => {
@@ -74,11 +74,11 @@ async function transitRacer(from, to, now) {
   return { timeline, steps };
 }
 
-async function walkRacer(from, to) {
-  const step = await walkStep(from, to, 'Walk');
+async function walkRacer(from, to, walkKmh) {
+  const step = await walkStep(from, to, 'Walk', walkKmh);
   return {
     timeline: sequentialTimeline([step]),
-    steps: [`🚶 Walk ${(step.distance / 1000).toFixed(1)} km the whole way`],
+    steps: [`🚶 Walk ${(step.distance / 1000).toFixed(1)} km the whole way at ${walkKmh} km/h, ${formatDuration(step.duration)}`],
   };
 }
 
@@ -89,12 +89,12 @@ export const RACERS = [
 ];
 
 // Returns racers with { ...meta, timeline, steps, finish } or { ...meta, error }, sorted by finish time.
-export async function planRace(from, to, { kmh = 16, now = new Date(), stations } = {}) {
+export async function planRace(from, to, { bikeKmh = 16, walkKmh = 5, now = new Date(), stations } = {}) {
   stations ??= await fetchStations();
   const results = await Promise.allSettled([
-    bikeRacer(from, to, stations, kmh),
-    transitRacer(from, to, now),
-    walkRacer(from, to),
+    bikeRacer(from, to, stations, { bikeKmh, walkKmh }),
+    transitRacer(from, to, now, walkKmh),
+    walkRacer(from, to, walkKmh),
   ]);
   return RACERS.map((meta, i) => {
     const r = results[i];

@@ -3,7 +3,7 @@ import { fetchStations, searchPlaces, reverseGeocode } from './api.js';
 import { planRace } from './race.js';
 import { positionAt, formatDuration, formatClock, escapeHtml } from './logic.js';
 
-const RACE_REAL_MS = 12000; // the last finisher crosses the line after 12 real seconds
+const RACE_REAL_MS = 22000; // the last finisher crosses the line after 22 real seconds
 const OSLO = [59.9139, 10.7522];
 const MEDALS = ['🥇', '🥈', '🥉'];
 
@@ -193,7 +193,8 @@ $('trip-form').addEventListener('submit', async (e) => {
     drawStations();
     state.now = new Date();
     state.racers = await planRace(state.from, state.to, {
-      kmh: Number($('speed-select').value),
+      bikeKmh: Number($('bike-speed').value),
+      walkKmh: Number($('walk-speed').value),
       now: state.now,
       stations: state.stations,
     });

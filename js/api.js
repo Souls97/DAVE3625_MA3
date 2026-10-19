@@ -39,8 +39,8 @@ export async function fetchStations() {
 }
 
 const TRIP_QUERY = `
-query ($from: Location!, $to: Location!, $modes: Modes, $n: Int) {
-  trip(from: $from, to: $to, modes: $modes, numTripPatterns: $n) {
+query ($from: Location!, $to: Location!, $modes: Modes, $n: Int, $walkSpeed: Float) {
+  trip(from: $from, to: $to, modes: $modes, numTripPatterns: $n, walkSpeed: $walkSpeed) {
     tripPatterns {
       expectedStartTime
       expectedEndTime
@@ -64,8 +64,11 @@ query ($from: Location!, $to: Location!, $modes: Modes, $n: Int) {
 const asLocation = (p) => ({ coordinates: { latitude: p.lat, longitude: p.lon } });
 
 // Trip patterns from Entur. mode: 'transit' (default modes), 'foot' or 'bicycle'.
-export async function fetchTrip(from, to, mode = 'transit') {
-  const variables = { from: asLocation(from), to: asLocation(to), n: mode === 'transit' ? 5 : 1 };
+// walkKmh sets the walking speed; Entur adjusts it for hills.
+export async function fetchTrip(from, to, mode = 'transit', walkKmh = 5) {
+  const variables = {
+    from: asLocation(from), to: asLocation(to), n: mode === 'transit' ? 5 : 1, walkSpeed: walkKmh / 3.6,
+  };
   if (mode !== 'transit') variables.modes = { directMode: mode, transportModes: [] };
   const body = await getJson(JOURNEY_PLANNER, {
     method: 'POST',

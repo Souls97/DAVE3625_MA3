@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   decodePolyline, distanceMeters, nearestStation, interpolateAlong, sequentialTimeline,
-  enturTimeline, positionAt, finishTime, pickBestTransit, rideSeconds, formatDuration, escapeHtml,
+  enturTimeline, positionAt, finishTime, pickBestTransit, travelSeconds, formatDuration, escapeHtml,
 } from '../js/logic.js';
 
 const close = (a, b, eps = 1e-5) => assert.ok(Math.abs(a - b) < eps, `${a} ≈ ${b}`);
@@ -87,8 +87,8 @@ test('pickBestTransit ignores walk-only patterns and picks the earliest arrival'
   assert.equal(pickBestTransit([walk]), null);
 });
 
-test('rideSeconds converts km/h correctly', () => {
-  assert.equal(rideSeconds(1800, 18), 360); // 1.8 km at 18 km/h = 6 min
+test('travelSeconds converts km/h correctly', () => {
+  assert.equal(travelSeconds(1800, 18), 360); // 1.8 km at 18 km/h = 6 min
 });
 
 test('formatDuration', () => {

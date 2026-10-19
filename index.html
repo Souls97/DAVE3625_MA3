@@ -35,14 +35,23 @@
         <ul class="suggestions" id="to-suggestions" role="listbox"></ul>
       </div>
 
-      <div class="field">
-        <label for="speed-select">How fast do you bike?</label>
-        <select id="speed-select">
-          <option value="12">🐢 Relaxed (12 km/h)</option>
-          <option value="16" selected>🚴 Normal (16 km/h)</option>
-          <option value="21">🚀 Late for class (21 km/h)</option>
-        </select>
+      <div class="speed-row">
+        <div class="field">
+          <label for="walk-speed">🚶 Walking speed</label>
+          <div class="unit-input">
+            <input id="walk-speed" type="number" inputmode="decimal" min="2" max="15" step="any" value="5" required>
+            <span>km/h</span>
+          </div>
+        </div>
+        <div class="field">
+          <label for="bike-speed">🚲 Biking speed</label>
+          <div class="unit-input">
+            <input id="bike-speed" type="number" inputmode="decimal" min="5" max="40" step="any" value="16" required>
+            <span>km/h</span>
+          </div>
+        </div>
       </div>
+      <p class="hint">Typical: walking 4–6 km/h, city biking 12–20 km/h.</p>
 
       <button type="submit" id="race-btn" class="primary" disabled>Start the race!</button>
     </form>

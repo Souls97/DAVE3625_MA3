@@ -126,8 +126,8 @@ export function pickBestTransit(patterns) {
     new Date(p.expectedEndTime) < new Date(best.expectedEndTime) ? p : best);
 }
 
-// Ride time in seconds for a distance in meters at a speed in km/h.
-export function rideSeconds(meters, kmh) {
+// Travel time in seconds for a distance in meters at a speed in km/h.
+export function travelSeconds(meters, kmh) {
   return meters / (kmh / 3.6);
 }
 
