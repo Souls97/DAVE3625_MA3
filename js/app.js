@@ -291,6 +291,7 @@ $('trip-form').addEventListener('submit', async (e) => {
     state.stations = await fetchStations();
     state.now = new Date();
     state.racers = await planRace(state.from, state.to, {
+      bikeType: bikeType(),
       bikeKmh: Number($('bike-speed').value),
       walkKmh: Number($('walk-speed').value),
       now: state.now,
@@ -315,6 +316,17 @@ $('trip-form').addEventListener('submit', async (e) => {
 });
 
 $('replay-btn').addEventListener('click', startRace);
+
+// ---------- Bike choice ----------
+
+const BIKE_HINTS = {
+  city: 'Walk to the nearest station with bikes, ride, and dock near your destination.',
+  own: 'Ride door to door, plus a minute to get your bike out and a minute to lock it.',
+};
+const bikeType = () => document.querySelector('input[name="bike-type"]:checked').value;
+const showBikeHint = () => { $('bike-hint').textContent = BIKE_HINTS[bikeType()]; };
+document.querySelectorAll('input[name="bike-type"]').forEach((input) => input.addEventListener('change', showBikeHint));
+showBikeHint();
 
 function renderResults() {
   const finishers = state.racers.filter((r) => !r.error);
@@ -492,7 +504,7 @@ $('day-btn').addEventListener('click', async () => {
     const times = points.map((p) => p.time);
     const flat = (r) => times.map(() => r.finish);
     const series = [];
-    if (racer('bike')) series.push({ id: 'bike', name: 'Bysykkel', color: racerColor('bike'), values: flat(racer('bike')) });
+    if (racer('bike')) series.push({ id: 'bike', name: racer('bike').name, color: racerColor('bike'), values: flat(racer('bike')) });
     series.push({ id: 'transit', name: 'Public transport', color: racerColor('transit'), values: points.map((p) => p.transit) });
     if (racer('walk')) series.push({ id: 'walk', name: 'Walking', color: racerColor('walk'), values: flat(racer('walk')) });
 

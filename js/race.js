@@ -1,7 +1,8 @@
 // Builds the three racers (bike, public transport, walking) for a from -> to trip.
+// The bike is either a Bysykkel (via stations) or the user's own bike (door to door).
 import { fetchStations, fetchTrip } from './api.js';
 import {
-  UNLOCK_SEC, DOCK_SEC, nearestStation, sequentialTimeline, enturTimeline,
+  UNLOCK_SEC, DOCK_SEC, OWN_BIKE_START_SEC, OWN_BIKE_PARK_SEC, nearestStation, sequentialTimeline, enturTimeline,
   pickBestTransit, travelSeconds, finishTime, decodePolyline, formatDuration, formatClock, escapeHtml,
   MODE_ICON, MODE_NAME,
 } from './logic.js';
@@ -51,6 +52,22 @@ async function bikeRacer(from, to, stations, { bikeKmh, walkKmh }) {
   return { timeline, steps, stations: [a, b] };
 }
 
+async function ownBikeRacer(from, to, bikeKmh) {
+  const [ride] = await fetchTrip(from, to, 'bicycle');
+  if (!ride) throw new Error('No cycling route found');
+  const timeline = sequentialTimeline([
+    { duration: OWN_BIKE_START_SEC, coords: [[from.lat, from.lon]], mode: 'wait', label: 'Get your bike' },
+    { duration: travelSeconds(ride.distance, bikeKmh), coords: legCoords(ride), mode: 'bicycle', label: 'Ride to destination', distance: ride.distance },
+    { duration: OWN_BIKE_PARK_SEC, coords: [[to.lat, to.lon]], mode: 'wait', label: 'Lock your bike' },
+  ]);
+  const steps = [
+    `🔓 Get your bike out and unlock it (${OWN_BIKE_START_SEC} s)`,
+    `🚲 Ride ${(ride.distance / 1000).toFixed(1)} km at ${bikeKmh} km/h, ${formatDuration(timeline[1].end - timeline[1].start)}`,
+    `🔒 Find a rack and lock your bike (${OWN_BIKE_PARK_SEC} s)`,
+  ];
+  return { timeline, steps };
+}
+
 async function transitRacer(from, to, now, walkKmh) {
   const pattern = pickBestTransit(await fetchTrip(from, to, 'transit', { walkKmh }));
   if (!pattern) throw new Error('No public transport route found right now');
@@ -84,14 +101,17 @@ export const RACERS = [
 ];
 
 // Returns racers with { ...meta, timeline, steps, finish } or { ...meta, error }, sorted by finish time.
-export async function planRace(from, to, { bikeKmh = 16, walkKmh = 5, now = new Date(), stations } = {}) {
-  stations ??= await fetchStations();
+// bikeType is 'city' (Bysykkel) or 'own' (the user's own bike).
+export async function planRace(from, to, { bikeType = 'city', bikeKmh = 16, walkKmh = 5, now = new Date(), stations } = {}) {
+  const ownBike = bikeType === 'own';
+  if (!ownBike) stations ??= await fetchStations();
   const results = await Promise.allSettled([
-    bikeRacer(from, to, stations, { bikeKmh, walkKmh }),
+    ownBike ? ownBikeRacer(from, to, bikeKmh) : bikeRacer(from, to, stations, { bikeKmh, walkKmh }),
     transitRacer(from, to, now, walkKmh),
     walkRacer(from, to, walkKmh),
   ]);
   return RACERS.map((meta, i) => {
+    if (ownBike && meta.id === 'bike') meta = { ...meta, name: 'Own bike' };
     const r = results[i];
     if (r.status === 'rejected') return { ...meta, error: r.reason.message, finish: Infinity };
     return { ...meta, ...r.value, finish: finishTime(r.value.timeline) };

@@ -3,6 +3,9 @@
 // Seconds spent at the bike station unlocking / docking the bike.
 export const UNLOCK_SEC = 60;
 export const DOCK_SEC = 30;
+// Seconds to get your own bike out and unlock it, and to find a rack and lock it at the destination.
+export const OWN_BIKE_START_SEC = 60;
+export const OWN_BIKE_PARK_SEC = 60;
 
 export const MODE_ICON = {
   foot: '🚶', bicycle: '🚲', bus: '🚌', coach: '🚌', tram: '🚋', metro: '🚇',
