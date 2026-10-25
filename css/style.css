@@ -157,7 +157,10 @@ button { font: inherit; cursor: pointer; }
 .racer-head .time { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
 .racer-head .place { font-size: 1.1rem; min-width: 1.4em; }
 .racer-eta { color: var(--muted); font-size: 0.85rem; }
-.racer-steps { margin: 8px 0 0; padding-left: 0; list-style: none; font-size: 0.88rem; }
+details { margin-top: 8px; font-size: 0.88rem; }
+summary { cursor: pointer; color: var(--muted); }
+summary:hover { color: var(--text); }
+.racer-steps { margin: 6px 0 0; padding-left: 0; list-style: none; font-size: 0.88rem; }
 .racer-steps li { padding: 2px 0; }
 .racer-card.failed { opacity: 0.7; }
 .racer-card .error { color: var(--muted); font-size: 0.88rem; margin: 6px 0 0; }
@@ -215,10 +218,10 @@ footer a { color: inherit; }
   .panel { grid-row: 2; border-right: 0; padding: 16px; overflow: visible; }
 }
 
-/* OpenStreetMap only has light tiles, so darken them in dark mode */
+/* Kartverket only has light tiles, so darken them in dark mode */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .leaflet-tile-pane {
-    filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
+    filter: invert(1) brightness(0.85) contrast(0.9);
   }
   :root:not([data-theme="light"]) .leaflet-container { background: #1b1f27; }
 }

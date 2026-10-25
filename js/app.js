@@ -24,9 +24,10 @@ const state = {
 // ---------- Map ----------
 
 const map = L.map('map').setView(OSLO, 13);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  maxZoom: 19,
+// Kartverket's grey-tone map: calm background so the routes stand out. Free, no key (CC BY 4.0).
+L.tileLayer('https://cache.kartverket.no/v1/wmts/1.0.0/topograatone/default/webmercator/{z}/{y}/{x}.png', {
+  attribution: '&copy; <a href="https://www.kartverket.no/">Kartverket</a>',
+  maxZoom: 18,
 }).addTo(map);
 
 const stationLayer = L.layerGroup().addTo(map);
@@ -43,19 +44,26 @@ function endIcon(letter, color) {
   });
 }
 
+const STATION_MIN_ZOOM = 16; // all stations are only shown when zoomed in close
+
+// The stations used in the current race are always shown; the rest only when zoomed in.
 function drawStations() {
   stationLayer.clearLayers();
+  const used = state.racers.find((r) => r.id === 'bike' && !r.error)?.stations ?? [];
+  const usedIds = new Set(used.map((s) => s.id));
+  const showAll = map.getZoom() >= STATION_MIN_ZOOM;
   for (const s of state.stations) {
-    L.circleMarker([s.lat, s.lon], {
-      radius: 4,
-      weight: 1,
-      color: s.bikes > 0 ? racerColor('bike') : '#999',
-      fillOpacity: 0.6,
-    })
+    const isUsed = usedIds.has(s.id);
+    if (!showAll && !isUsed) continue;
+    L.circleMarker([s.lat, s.lon], isUsed
+      ? { radius: 7, weight: 2, color: '#fff', fillColor: racerColor('bike'), fillOpacity: 1 }
+      : { radius: 4, weight: 0, fillColor: s.bikes > 0 ? racerColor('bike') : '#999', fillOpacity: 0.5 })
       .bindPopup(`<b>${escapeHtml(s.name)}</b><br>🚲 ${s.bikes} bikes · 🅿️ ${s.docks} free docks`)
       .addTo(stationLayer);
   }
 }
+
+map.on('zoomend', drawStations);
 
 map.on('click', async (e) => {
   if (!state.picking) return;
@@ -190,7 +198,6 @@ $('trip-form').addEventListener('submit', async (e) => {
   setStatus('Checking live bikes and departures…');
   try {
     state.stations = await fetchStations();
-    drawStations();
     state.now = new Date();
     state.racers = await planRace(state.from, state.to, {
       bikeKmh: Number($('bike-speed').value),
@@ -198,6 +205,7 @@ $('trip-form').addEventListener('submit', async (e) => {
       now: state.now,
       stations: state.stations,
     });
+    drawStations();
     if (state.racers.every((r) => r.error)) {
       setStatus(`No racer could find a route: ${state.racers[0].error}`, true);
       return;
@@ -244,7 +252,10 @@ function renderResults() {
       </div>
       <div class="racer-eta">Arrive ${formatClock(eta)}</div>
       <div class="progress"><div></div></div>
-      <ul class="racer-steps">${r.steps.map((s) => `<li>${s}</li>`).join('')}</ul>
+      <details>
+        <summary>Route details</summary>
+        <ul class="racer-steps">${r.steps.map((s) => `<li>${s}</li>`).join('')}</ul>
+      </details>
     </li>`;
   }).join('');
   $('results').hidden = false;
@@ -255,19 +266,31 @@ function drawRoutes() {
   const bounds = L.latLngBounds([[state.from.lat, state.from.lon], [state.to.lat, state.to.lon]]);
   for (const r of state.racers) {
     if (r.error) continue;
+    r.lines = [];
     for (const seg of r.timeline) {
       if (seg.coords.length < 2) continue;
       const walking = seg.mode === 'foot';
-      L.polyline(seg.coords, {
+      const line = L.polyline(seg.coords, {
         color: racerColor(r.id),
         weight: walking ? 3 : 5,
-        opacity: walking ? 0.5 : 0.65,
         dashArray: walking ? '4 7' : null,
       }).addTo(routeLayer);
+      r.lines.push({ line, walking });
       bounds.extend(seg.coords);
     }
   }
   map.fitBounds(bounds, { padding: [40, 40] });
+}
+
+// Full strength for everyone during the race; afterwards only the winner's route stays strong.
+function styleRoutes(winnerId = null) {
+  for (const r of state.racers) {
+    for (const { line, walking } of r.lines ?? []) {
+      const faded = winnerId && r.id !== winnerId;
+      line.setStyle({ opacity: faded ? 0.15 : walking ? 0.6 : 0.8 });
+      if (!faded) line.bringToFront();
+    }
+  }
 }
 
 function formatRaceClock(sec) {
@@ -281,6 +304,7 @@ function startRace() {
   const runners = state.racers.filter((r) => !r.error);
   const lastFinish = Math.max(...runners.map((r) => r.finish));
   const raceSecPerMs = lastFinish / RACE_REAL_MS;
+  styleRoutes();
 
   for (const r of runners) {
     const pos = positionAt(r.timeline, 0) ?? [state.from.lat, state.from.lon];
@@ -316,6 +340,7 @@ function startRace() {
       }
     }
     if (t < lastFinish) state.animFrame = requestAnimationFrame(frame);
+    else styleRoutes(runners[0].id);
   };
   state.animFrame = requestAnimationFrame(frame);
 }
@@ -336,7 +361,7 @@ setPicking('from');
     if (open.length === 0) {
       setStatus('Bysykkel looks closed right now (winter break?). Bus and walking still race.');
     } else {
-      setStatus(`${open.length} stations live · ${bikes} bikes available right now. Pick a start and a destination.`);
+      setStatus(`${open.length} stations live · ${bikes} bikes available right now. Pick a start and a destination (zoom in to see stations).`);
     }
   } catch (err) {
     setStatus(`Could not load Bysykkel stations (${err.message}).`, true);
