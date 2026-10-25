@@ -1,7 +1,13 @@
-// UI: map, address search, and the race animation.
-import { fetchStations, searchPlaces, reverseGeocode } from './api.js';
+// UI: map, address search, the race animation and the day chart.
+import {
+  fetchStations, searchPlaces, reverseGeocode, fetchStopsInArea, fetchStopDetails,
+} from './api.js';
 import { planRace } from './race.js';
-import { positionAt, formatDuration, formatClock, escapeHtml } from './logic.js';
+import { transitDayProfile } from './day.js';
+import { renderDayChart } from './chart.js';
+import {
+  positionAt, formatDuration, formatClock, escapeHtml, periodsWhere, MODE_ICON,
+} from './logic.js';
 
 const RACE_REAL_MS = 22000; // the last finisher crosses the line after 22 real seconds
 const OSLO = [59.9139, 10.7522];
@@ -18,6 +24,7 @@ const state = {
   stations: [],
   racers: [],
   now: null,
+  walkKmh: 5,       // speeds used in the latest race
   animFrame: null,
 };
 
@@ -30,6 +37,7 @@ L.tileLayer('https://cache.kartverket.no/v1/wmts/1.0.0/topograatone/default/webm
   maxZoom: 18,
 }).addTo(map);
 
+const stopLayer = L.layerGroup().addTo(map);
 const stationLayer = L.layerGroup().addTo(map);
 const routeLayer = L.layerGroup().addTo(map);
 const racerLayer = L.layerGroup().addTo(map);
@@ -44,7 +52,21 @@ function endIcon(letter, color) {
   });
 }
 
-const STATION_MIN_ZOOM = 16; // all stations are only shown when zoomed in close
+const STATION_MIN_ZOOM = 16; // all stations and stops are only shown when zoomed in close
+const TIP_OPTIONS = { direction: 'top', offset: [0, -8], className: 'map-tip', opacity: 1 };
+
+const plural = (n, word) => (n === 1 ? word : `${word}s`);
+
+function stationTip(s) {
+  return `<div class="tip-title">🚲 ${escapeHtml(s.name)}</div>
+    <div class="tip-sub">Bysykkel station</div>
+    <div class="tip-stats">
+      <span><b>${s.bikes - s.ebikes}</b> ${plural(s.bikes - s.ebikes, 'bike')}</span>
+      <span><b>${s.ebikes}</b> ${plural(s.ebikes, 'e-bike')}</span>
+      <span><b>${s.docks}</b> free ${plural(s.docks, 'dock')}</span>
+    </div>
+    ${s.renting ? '' : '<div class="tip-note">Not renting out bikes right now</div>'}`;
+}
 
 // The stations used in the current race are always shown; the rest only when zoomed in.
 function drawStations() {
@@ -58,12 +80,84 @@ function drawStations() {
     L.circleMarker([s.lat, s.lon], isUsed
       ? { radius: 7, weight: 2, color: '#fff', fillColor: racerColor('bike'), fillOpacity: 1 }
       : { radius: 4, weight: 0, fillColor: s.bikes > 0 ? racerColor('bike') : '#999', fillOpacity: 0.5 })
-      .bindPopup(`<b>${escapeHtml(s.name)}</b><br>🚲 ${s.bikes} bikes · 🅿️ ${s.docks} free docks`)
+      .bindTooltip(stationTip(s), TIP_OPTIONS)
       .addTo(stationLayer);
   }
 }
 
+// ---------- Public transport stops (shown when zoomed in) ----------
+
+const stopMarkers = new Map();  // stop id -> marker
+const stopDetails = new Map();  // stop id -> { promise, at }; departures are live, so cached briefly
+const DETAILS_TTL_MS = 60000;
+let stopRequest = 0;
+
+function departureIn(time) {
+  const min = Math.round((time - Date.now()) / 60000);
+  if (min <= 0) return 'now';
+  return min < 15 ? `${min} min` : formatClock(time);
+}
+
+function stopTip(name, details) {
+  if (!details) return `<div class="tip-title">${escapeHtml(name)}</div><div class="tip-sub">Loading lines and departures…</div>`;
+  const byMode = new Map();
+  for (const l of details.lines) {
+    if (!byMode.has(l.mode)) byMode.set(l.mode, []);
+    byMode.get(l.mode).push(l.code);
+  }
+  const lines = [...byMode].map(([mode, codes]) =>
+    `<div class="tip-lines">${MODE_ICON[mode] ?? '🚏'} ${codes.map((c) => `<span class="line-badge">${escapeHtml(c)}</span>`).join('')}</div>`).join('');
+  const deps = details.departures.length
+    ? `<ul class="tip-deps">${details.departures.map((d) => `<li>
+        <span class="line-badge">${escapeHtml(d.code)}</span>
+        <span class="dep-dest">${escapeHtml(d.destination)}</span>
+        <span class="dep-time">${departureIn(d.time)}</span></li>`).join('')}</ul>`
+    : '<div class="tip-note">No departures in the next 2 hours</div>';
+  return `<div class="tip-title">${escapeHtml(details.name)}</div>${lines}<div class="tip-sub">Next departures</div>${deps}`;
+}
+
+function addStopMarker(stop) {
+  const marker = L.marker([stop.lat, stop.lon], {
+    icon: L.divIcon({ className: '', html: '<div class="stop-marker"></div>', iconSize: [12, 12], iconAnchor: [6, 6] }),
+    bubblingMouseEvents: true, // a click still sets the start/destination like elsewhere on the map
+    keyboard: false,
+  }).bindTooltip(stopTip(stop.name), TIP_OPTIONS);
+  marker.on('tooltipopen', async () => {
+    let cached = stopDetails.get(stop.id);
+    if (!cached || Date.now() - cached.at > DETAILS_TTL_MS) {
+      cached = { promise: fetchStopDetails(stop.id), at: Date.now() };
+      stopDetails.set(stop.id, cached);
+    }
+    try {
+      marker.setTooltipContent(stopTip(stop.name, await cached.promise));
+    } catch {
+      stopDetails.delete(stop.id);
+      marker.setTooltipContent(`<div class="tip-title">${escapeHtml(stop.name)}</div><div class="tip-note">Could not load departures</div>`);
+    }
+  });
+  marker.addTo(stopLayer);
+  stopMarkers.set(stop.id, marker);
+}
+
+async function loadStops() {
+  const request = ++stopRequest;
+  if (map.getZoom() < STATION_MIN_ZOOM) {
+    stopLayer.clearLayers();
+    stopMarkers.clear();
+    return;
+  }
+  const b = map.getBounds().pad(0.2);
+  try {
+    const stops = await fetchStopsInArea({ south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast() });
+    if (request !== stopRequest) return; // the map moved again meanwhile
+    for (const stop of stops) if (!stopMarkers.has(stop.id)) addStopMarker(stop);
+  } catch {
+    // stops are an extra; the race works without them
+  }
+}
+
 map.on('zoomend', drawStations);
+map.on('moveend', loadStops);
 
 map.on('click', async (e) => {
   if (!state.picking) return;
@@ -211,7 +305,9 @@ $('trip-form').addEventListener('submit', async (e) => {
       return;
     }
     setStatus('');
+    state.walkKmh = Number($('walk-speed').value);
     renderResults();
+    resetDay();
     drawRoutes();
     startRace();
   } catch (err) {
@@ -345,7 +441,82 @@ function startRace() {
   state.animFrame = requestAnimationFrame(frame);
 }
 
+// ---------- When should I go? ----------
+
+function setupDaySelect() {
+  const select = $('day-select');
+  const today = new Date();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+    const label = i === 0 ? 'Today' : i === 1 ? 'Tomorrow'
+      : d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+    select.add(new Option(label, String(i)));
+  }
+}
+
+function resetDay() {
+  $('day-summary').textContent = '';
+  $('day-chart').innerHTML = '';
+}
+
+// One sentence answering the question, comparing public transport with the bike (or walking).
+function daySummary(points, rival) {
+  const rivalName = rival.id === 'bike' ? 'the bike' : 'walking';
+  const periods = periodsWhere(points, (p) => p.transit != null && p.transit < rival.finish);
+  if (periods.length === 0) {
+    return `${rival.icon} <b>${rival.id === 'bike' ? 'The bike' : 'Walking'} wins all day.</b> Public transport is never faster on this trip.`;
+  }
+  const ranges = periods.map((p) => (p.from === p.to
+    ? `at ${formatClock(p.from.time)}`
+    : `${formatClock(p.from.time)}–${formatClock(p.to.time)}`));
+  const shown = ranges.length > 4 ? [...ranges.slice(0, 3), `${ranges.length - 3} more times`] : ranges;
+  return `🚌 <b>Public transport beats ${rivalName}</b> if you leave ${new Intl.ListFormat('en').format(shown)}.`;
+}
+
+$('day-btn').addEventListener('click', async () => {
+  if (!state.from || !state.to || state.racers.length === 0) return;
+  const btn = $('day-btn');
+  btn.disabled = true;
+  resetDay();
+  const summary = $('day-summary');
+  const offset = Number($('day-select').value);
+  const today = new Date();
+  const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset);
+  const racer = (id) => state.racers.find((r) => r.id === id && !r.error);
+  try {
+    const points = await transitDayProfile(state.from, state.to, date, {
+      walkKmh: state.walkKmh,
+      onProgress: (done, total) => { summary.textContent = `Checking departures through the day… ${done}/${total}`; },
+    });
+    if (points.every((p) => p.transit == null)) {
+      summary.textContent = 'Could not find any public transport for this trip on that day.';
+      return;
+    }
+    const times = points.map((p) => p.time);
+    const flat = (r) => times.map(() => r.finish);
+    const series = [];
+    if (racer('bike')) series.push({ id: 'bike', name: 'Bysykkel', color: racerColor('bike'), values: flat(racer('bike')) });
+    series.push({ id: 'transit', name: 'Public transport', color: racerColor('transit'), values: points.map((p) => p.transit) });
+    if (racer('walk')) series.push({ id: 'walk', name: 'Walking', color: racerColor('walk'), values: flat(racer('walk')) });
+
+    const rival = racer('bike') ?? racer('walk');
+    summary.innerHTML = rival ? daySummary(points, rival) : '';
+    renderDayChart($('day-chart'), {
+      times,
+      series,
+      yCapSec: racer('walk') ? racer('walk').finish * 1.5 : null,
+      now: offset === 0 ? new Date() : null,
+    });
+  } catch (err) {
+    summary.textContent = `Could not load the day (${err.message}).`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 // ---------- Start-up ----------
+
+setupDaySelect();
 
 setupAutocomplete('from');
 setupAutocomplete('to');

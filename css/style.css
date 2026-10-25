@@ -22,9 +22,9 @@
     --muted: #9aa3b2;
     --border: #2b3240;
     --accent: #4c8dff;
-    --bike: #2cc9a8;
-    --transit: #ff6b5e;
-    --walk: #a38bff;
+    --bike: #1aa98c;
+    --transit: #f0594d;
+    --walk: #9178f2;
     --shadow: 0 1px 3px rgb(0 0 0 / 0.4);
     color-scheme: dark;
   }
@@ -182,6 +182,105 @@ summary:hover { color: var(--text); }
   pointer-events: none;
 }
 .hint { margin: -6px 0 0; color: var(--muted); font-size: 0.8rem; }
+
+/* Map hover tooltips */
+.leaflet-tooltip.map-tip {
+  max-width: 280px;
+  padding: 10px 12px;
+  white-space: normal;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.2);
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.leaflet-tooltip-top.map-tip::before { border-top-color: var(--panel); }
+.tip-title { font-weight: 700; font-size: 14px; }
+.tip-sub { margin-top: 6px; color: var(--muted); font-size: 12px; }
+.tip-note { margin-top: 6px; color: var(--muted); font-style: italic; }
+.tip-stats { display: flex; gap: 12px; margin-top: 6px; }
+.tip-lines { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; margin-top: 6px; }
+.tip-deps { margin: 4px 0 0; padding: 0; list-style: none; }
+.tip-deps li { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.dep-dest { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dep-time { color: var(--muted); font-variant-numeric: tabular-nums; }
+.line-badge {
+  display: inline-block;
+  min-width: 24px;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  font-weight: 600;
+  font-size: 12px;
+  text-align: center;
+}
+.stop-marker {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--transit);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
+}
+
+/* When should I go? */
+.day-section { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); }
+.day-section h2 { margin: 0; font-size: 1.1rem; }
+.day-intro { margin: 4px 0 10px; color: var(--muted); font-size: 0.88rem; }
+.day-controls { display: flex; gap: 8px; }
+.secondary {
+  padding: 9px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: none;
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.secondary:disabled { opacity: 0.5; cursor: progress; }
+.day-summary { margin: 12px 0 6px; min-height: 1.4em; }
+.day-summary:empty { display: none; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0; font-size: 0.85rem; color: var(--muted); }
+.chart-legend i, .chart-tip i {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-radius: 2px;
+}
+.chart-wrap { position: relative; }
+.chart { display: block; overflow: visible; touch-action: pan-y; }
+.chart:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+.chart .grid { stroke: var(--border); stroke-width: 1; }
+.chart .tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart .series { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .now-line { stroke: var(--muted); stroke-width: 1; }
+.chart .crosshair { stroke: var(--muted); stroke-width: 1; }
+.chart .dot { stroke: var(--panel); stroke-width: 2; }
+.chart-tip {
+  position: absolute;
+  top: 18px;
+  min-width: 170px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+  font-size: 0.82rem;
+  pointer-events: none;
+  z-index: 5;
+}
+.chart-tip div { display: flex; align-items: center; margin-top: 3px; color: var(--muted); }
+.chart-tip div span { margin-left: auto; padding-left: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
+.chart-tip div.best, .chart-tip div.best span { color: var(--text); font-weight: 700; }
+.chart-table { margin-top: 8px; font-size: 0.85rem; }
+.chart-table table { width: 100%; margin-top: 6px; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.chart-table th, .chart-table td { padding: 3px 4px; text-align: right; border-bottom: 1px solid var(--border); }
+.chart-table th:first-child, .chart-table td:first-child { text-align: left; }
+.chart-table th { color: var(--muted); font-weight: 600; }
 
 footer { margin-top: auto; font-size: 0.78rem; color: var(--muted); }
 footer a { color: inherit; }

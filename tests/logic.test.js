@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   decodePolyline, distanceMeters, nearestStation, interpolateAlong, sequentialTimeline,
   enturTimeline, positionAt, finishTime, pickBestTransit, travelSeconds, formatDuration, escapeHtml,
+  daySlots, periodsWhere, niceStep,
 } from '../js/logic.js';
 
 const close = (a, b, eps = 1e-5) => assert.ok(Math.abs(a - b) < eps, `${a} ≈ ${b}`);
@@ -99,4 +100,25 @@ test('formatDuration', () => {
 
 test('escapeHtml neutralises markup in API text', () => {
   assert.equal(escapeHtml('<b>"Tøyen" & co</b>'), '&lt;b&gt;&quot;Tøyen&quot; &amp; co&lt;/b&gt;');
+});
+
+test('daySlots covers the whole day in local time', () => {
+  const slots = daySlots(new Date(2026, 9, 26, 14, 7), 30);
+  assert.equal(slots.length, 48);
+  assert.deepEqual([slots[0].getHours(), slots[0].getMinutes()], [0, 0]);
+  assert.deepEqual([slots[17].getHours(), slots[17].getMinutes()], [8, 30]);
+  assert.deepEqual([slots[47].getHours(), slots[47].getMinutes()], [23, 30]);
+});
+
+test('periodsWhere finds consecutive runs, including one at the end', () => {
+  const runs = periodsWhere([1, 5, 6, 2, 7, 8, 9], (n) => n > 4);
+  assert.deepEqual(runs, [{ from: 5, to: 6 }, { from: 7, to: 9 }]);
+  assert.deepEqual(periodsWhere([1, 2], (n) => n > 4), []);
+});
+
+test('niceStep keeps the axis at a handful of round ticks', () => {
+  assert.equal(niceStep(20), 5);
+  assert.equal(niceStep(45), 10);
+  assert.equal(niceStep(70), 15);
+  assert.equal(niceStep(240), 60);
 });

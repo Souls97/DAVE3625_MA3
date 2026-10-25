@@ -3,20 +3,15 @@ import { fetchStations, fetchTrip } from './api.js';
 import {
   UNLOCK_SEC, DOCK_SEC, nearestStation, sequentialTimeline, enturTimeline,
   pickBestTransit, travelSeconds, finishTime, decodePolyline, formatDuration, formatClock, escapeHtml,
+  MODE_ICON, MODE_NAME,
 } from './logic.js';
-
-const MODE_ICON = {
-  foot: '🚶', bicycle: '🚲', bus: '🚌', coach: '🚌', tram: '🚋', metro: '🚇',
-  rail: '🚆', water: '⛴️', air: '✈️',
-};
-const MODE_NAME = { bus: 'Bus', coach: 'Coach', tram: 'Tram', metro: 'T-bane', rail: 'Train', water: 'Ferry' };
 
 const legCoords = (pattern) =>
   pattern.legs.flatMap((l) => (l.pointsOnLink ? decodePolyline(l.pointsOnLink.points) : []));
 
 // Walking trip between two points, as a single timeline step.
 async function walkStep(from, to, label, walkKmh) {
-  const [pattern] = await fetchTrip(from, to, 'foot', walkKmh);
+  const [pattern] = await fetchTrip(from, to, 'foot', { walkKmh });
   if (!pattern) throw new Error('No walking route found');
   return { duration: pattern.duration, coords: legCoords(pattern), mode: 'foot', label, distance: pattern.distance };
 }
@@ -57,7 +52,7 @@ async function bikeRacer(from, to, stations, { bikeKmh, walkKmh }) {
 }
 
 async function transitRacer(from, to, now, walkKmh) {
-  const pattern = pickBestTransit(await fetchTrip(from, to, 'transit', walkKmh));
+  const pattern = pickBestTransit(await fetchTrip(from, to, 'transit', { walkKmh }));
   if (!pattern) throw new Error('No public transport route found right now');
   const timeline = enturTimeline(pattern, now);
   const steps = pattern.legs.map((l) => {

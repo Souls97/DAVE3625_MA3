@@ -4,6 +4,12 @@
 export const UNLOCK_SEC = 60;
 export const DOCK_SEC = 30;
 
+export const MODE_ICON = {
+  foot: '🚶', bicycle: '🚲', bus: '🚌', coach: '🚌', tram: '🚋', metro: '🚇',
+  rail: '🚆', water: '⛴️', air: '✈️',
+};
+export const MODE_NAME = { bus: 'Bus', coach: 'Coach', tram: 'Tram', metro: 'T-bane', rail: 'Train', water: 'Ferry' };
+
 // Decode a Google encoded polyline (the format Entur uses for pointsOnLink).
 export function decodePolyline(str, precision = 5) {
   const factor = 10 ** precision;
@@ -145,4 +151,38 @@ export function formatClock(date) {
 export function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+// Departure times every `stepMin` minutes over the calendar day of `date`, in local clock time.
+export function daySlots(date, stepMin = 30) {
+  const slots = [];
+  for (let min = 0; min < 24 * 60; min += stepMin) {
+    slots.push(new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, min));
+  }
+  return slots;
+}
+
+// Runs of consecutive items matching `predicate`, as [{ from, to }] (first and last matching item).
+export function periodsWhere(items, predicate) {
+  const periods = [];
+  let current = null;
+  for (const item of items) {
+    if (predicate(item)) {
+      if (current) current.to = item;
+      else current = { from: item, to: item };
+    } else if (current) {
+      periods.push(current);
+      current = null;
+    }
+  }
+  if (current) periods.push(current);
+  return periods;
+}
+
+// A round axis step giving at most `maxTicks` ticks up to `max`.
+export function niceStep(max, maxTicks = 5) {
+  for (const step of [5, 10, 15, 20, 30, 60, 120]) {
+    if (max / step <= maxTicks) return step;
+  }
+  return Math.ceil(max / maxTicks / 60) * 60;
 }
