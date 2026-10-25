@@ -5,6 +5,7 @@ import {
 import { planRace } from './race.js';
 import { transitDayProfile } from './day.js';
 import { renderDayChart } from './chart.js';
+import { addBasemap } from './basemap.js';
 import {
   positionAt, formatDuration, formatClock, escapeHtml, periodsWhere, MODE_ICON,
 } from './logic.js';
@@ -31,11 +32,7 @@ const state = {
 // ---------- Map ----------
 
 const map = L.map('map').setView(OSLO, 13);
-// Kartverket's grey-tone map: calm background so the routes stand out. Free, no key (CC BY 4.0).
-L.tileLayer('https://cache.kartverket.no/v1/wmts/1.0.0/topograatone/default/webmercator/{z}/{y}/{x}.png', {
-  attribution: '&copy; <a href="https://www.kartverket.no/">Kartverket</a>',
-  maxZoom: 18,
-}).addTo(map);
+addBasemap(map).catch(() => setStatus('Could not load the map background.', true));
 
 const stopLayer = L.layerGroup().addTo(map);
 const stationLayer = L.layerGroup().addTo(map);

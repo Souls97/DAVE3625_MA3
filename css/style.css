@@ -317,10 +317,8 @@ footer a { color: inherit; }
   .panel { grid-row: 2; border-right: 0; padding: 16px; overflow: visible; }
 }
 
-/* Kartverket only has light tiles, so darken them in dark mode */
+/* shown for a moment before the vector map has drawn */
+.leaflet-container { background: #eef0f3; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .leaflet-tile-pane {
-    filter: invert(1) brightness(0.85) contrast(0.9);
-  }
-  :root:not([data-theme="light"]) .leaflet-container { background: #1b1f27; }
+  :root:not([data-theme="light"]) .leaflet-container { background: #151a22; }
 }
