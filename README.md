@@ -4,7 +4,7 @@
 
 Pick a start and a destination in Oslo, and a bike (Bysykkel or your own), public transport and a walker race each other on the map, using live bike availability and real-time departures. A "When should I go?" chart shows how public transport compares through the day.
 
-Demo: _add link here_
+Demo link: https://souls97.github.io/DAVE3625_MA3/
 
 ## How AI was used
 
