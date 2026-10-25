@@ -3,7 +3,7 @@
 //  - Entur Journey Planner: walking / cycling / public transport routes in Norway
 //  - Entur Geocoder: address search
 
-const CLIENT_NAME = 'oslomet-sykkelellerbuss';
+const CLIENT_NAME = 'oslomet-raceacrossoslo';
 const GBFS = 'https://gbfs.urbansharing.com/oslobysykkel.no';
 const JOURNEY_PLANNER = 'https://api.entur.io/journey-planner/v3/graphql';
 const GEOCODER = 'https://api.entur.io/geocoder/v1/autocomplete';
