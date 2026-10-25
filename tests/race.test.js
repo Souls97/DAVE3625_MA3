@@ -24,7 +24,7 @@ test('own bike rides door to door with time to get the bike out and lock it', as
   const bike = racers.find((r) => r.id === 'bike');
   assert.equal(bike.name, 'Own bike');
   assert.equal(bike.finish, 60 + 720 + 60); // 3 km at 15 km/h = 12 min
-  assert.deepEqual(bike.timeline.map((s) => s.mode), ['wait', 'bicycle', 'wait']);
+  assert.deepEqual(bike.timeline.map((s) => s.mode), ['unlock', 'bicycle', 'lock']);
   assert.equal(bike.stations, undefined);
   assert.ok(urls.every((u) => !u.includes('oslobysykkel')), 'no Bysykkel data needed');
   assert.equal(racers[0].id, 'bike'); // faster than the 2000 s walk

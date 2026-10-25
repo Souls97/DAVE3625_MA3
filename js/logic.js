@@ -10,6 +10,8 @@ export const OWN_BIKE_PARK_SEC = 60;
 export const MODE_ICON = {
   foot: '🚶', bicycle: '🚲', bus: '🚌', coach: '🚌', tram: '🚋', metro: '🚇',
   rail: '🚆', water: '⛴️', air: '✈️',
+  // what a racer can be doing besides travelling (see activityAt)
+  unlock: '🔓', lock: '🔒', wait: '⏳', finish: '🏁',
 };
 export const MODE_NAME = { bus: 'Bus', coach: 'Coach', tram: 'Tram', metro: 'T-bane', rail: 'Train', water: 'Ferry' };
 
@@ -121,6 +123,14 @@ export function positionAt(timeline, t) {
   }
   const last = segs[segs.length - 1];
   return last.coords[last.coords.length - 1];
+}
+
+// What a racer is doing at time t: the current segment's mode ('foot', 'bus', 'unlock', ...),
+// 'wait' before or between legs (e.g. waiting for the tram), or 'finish' once it has arrived.
+export function activityAt(timeline, t) {
+  if (timeline.length === 0 || t >= finishTime(timeline)) return 'finish';
+  const seg = timeline.find((s) => t >= s.start && t < s.end);
+  return seg ? seg.mode : 'wait';
 }
 
 export function finishTime(timeline) {

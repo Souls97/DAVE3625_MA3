@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   decodePolyline, distanceMeters, nearestStation, interpolateAlong, sequentialTimeline,
-  enturTimeline, positionAt, finishTime, pickBestTransit, travelSeconds, formatDuration, escapeHtml,
+  enturTimeline, positionAt, activityAt, finishTime, pickBestTransit, travelSeconds, formatDuration, escapeHtml,
   daySlots, periodsWhere, niceStep,
 } from '../js/logic.js';
 
@@ -78,6 +78,20 @@ test('positionAt waits at the stop between legs', () => {
   assert.deepEqual(positionAt(tl, 15), [0, 1]); // waiting
   assert.deepEqual(positionAt(tl, 999), [0, 2]); // finished
   assert.equal(positionAt([], 5), null);
+});
+
+test('activityAt follows the racer from walking to waiting to riding to the finish', () => {
+  const tl = [
+    { start: 0, end: 300, mode: 'foot', coords: [] },
+    { start: 420, end: 900, mode: 'tram', coords: [] }, // 2 min wait at the stop first
+    { start: 900, end: 960, mode: 'foot', coords: [] },
+  ];
+  assert.equal(activityAt(tl, 0), 'foot');
+  assert.equal(activityAt(tl, 350), 'wait');
+  assert.equal(activityAt(tl, 420), 'tram');
+  assert.equal(activityAt(tl, 959), 'foot');
+  assert.equal(activityAt(tl, 960), 'finish');
+  assert.equal(activityAt([], 0), 'finish');
 });
 
 test('pickBestTransit ignores walk-only patterns and picks the earliest arrival', () => {

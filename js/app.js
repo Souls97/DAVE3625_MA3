@@ -7,7 +7,7 @@ import { transitDayProfile } from './day.js';
 import { renderDayChart } from './chart.js';
 import { addBasemap } from './basemap.js';
 import {
-  positionAt, formatDuration, formatClock, escapeHtml, periodsWhere, MODE_ICON,
+  positionAt, activityAt, formatDuration, formatClock, escapeHtml, periodsWhere, MODE_ICON,
 } from './logic.js';
 
 const RACE_REAL_MS = 22000; // the last finisher crosses the line after 22 real seconds
@@ -403,6 +403,20 @@ function formatRaceClock(sec) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+// Shows what the racer is doing right now (walking, bus, tram, waiting...) as its map icon.
+function showActivity(r, activity) {
+  if (activity === r.activity) return;
+  const el = r.marker.getElement()?.querySelector('.racer-marker');
+  if (!el) return;
+  r.activity = activity;
+  el.textContent = MODE_ICON[activity] ?? r.icon;
+  if (!reducedMotion.matches) {
+    el.animate([{ transform: 'scale(1.3)' }, { transform: 'scale(1)' }], { duration: 250, easing: 'ease-out' });
+  }
+}
+
 function startRace() {
   cancelAnimationFrame(state.animFrame);
   racerLayer.clearLayers();
@@ -416,12 +430,14 @@ function startRace() {
     r.marker = L.marker(pos, {
       icon: L.divIcon({
         className: '',
-        html: `<div class="racer-marker" style="--racer:${racerColor(r.id)}">${r.icon}</div>`,
+        html: `<div class="racer-marker" style="--racer:${racerColor(r.id)}"></div>`,
         iconSize: [34, 34],
         iconAnchor: [17, 17],
       }),
       interactive: false,
     }).addTo(racerLayer);
+    r.activity = null;
+    showActivity(r, activityAt(r.timeline, 0));
     r.card = $(`card-${r.id}`);
     r.card.classList.remove('winner');
     r.card.querySelector('.place').textContent = '';
@@ -436,6 +452,7 @@ function startRace() {
     for (const r of runners) {
       const pos = positionAt(r.timeline, t);
       if (pos) r.marker.setLatLng(pos);
+      showActivity(r, activityAt(r.timeline, t));
       r.card.querySelector('.progress > div').style.width = `${Math.min(100, (t / r.finish) * 100)}%`;
       if (!r.placed && t >= r.finish) {
         r.placed = true;

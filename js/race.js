@@ -37,9 +37,9 @@ async function bikeRacer(from, to, stations, { bikeKmh, walkKmh }) {
 
   const timeline = sequentialTimeline([
     walk1,
-    { duration: UNLOCK_SEC, coords: at(a), mode: 'wait', label: 'Unlock bike' },
+    { duration: UNLOCK_SEC, coords: at(a), mode: 'unlock', label: 'Unlock bike' },
     { duration: travelSeconds(ride.distance, bikeKmh), coords: legCoords(ride), mode: 'bicycle', label: `Ride to ${b.name}`, distance: ride.distance },
-    { duration: DOCK_SEC, coords: at(b), mode: 'wait', label: 'Dock bike' },
+    { duration: DOCK_SEC, coords: at(b), mode: 'lock', label: 'Dock bike' },
     walk2,
   ]);
   const steps = [
@@ -56,9 +56,9 @@ async function ownBikeRacer(from, to, bikeKmh) {
   const [ride] = await fetchTrip(from, to, 'bicycle');
   if (!ride) throw new Error('No cycling route found');
   const timeline = sequentialTimeline([
-    { duration: OWN_BIKE_START_SEC, coords: [[from.lat, from.lon]], mode: 'wait', label: 'Get your bike' },
+    { duration: OWN_BIKE_START_SEC, coords: [[from.lat, from.lon]], mode: 'unlock', label: 'Get your bike' },
     { duration: travelSeconds(ride.distance, bikeKmh), coords: legCoords(ride), mode: 'bicycle', label: 'Ride to destination', distance: ride.distance },
-    { duration: OWN_BIKE_PARK_SEC, coords: [[to.lat, to.lon]], mode: 'wait', label: 'Lock your bike' },
+    { duration: OWN_BIKE_PARK_SEC, coords: [[to.lat, to.lon]], mode: 'lock', label: 'Lock your bike' },
   ]);
   const steps = [
     `🔓 Get your bike out and unlock it (${OWN_BIKE_START_SEC} s)`,
