@@ -8,7 +8,7 @@ Demo: _add link here_
 
 ## How AI was used
 
-This project was built with Claude Code. I started by asking it for app ideas, since the examples in the assignment felt a bit basic, and picked the bike-vs-bus race. From there I described what I wanted in plain language, tried each version myself and asked for changes when something felt off. The map was too cluttered at first, then too grey and boring, and the animation felt rushed. Some features came from just using the app, like wanting to race with my own bike instead of a Bysykkel. The AI wrote and tested the code, while I decided what to build and manually tested and commited any changes.
+This project was built with Claude Code. I started by asking it for app ideas, to see if anything interesting came up. A bike-vs-bus race caught my interest. From there I described what I wanted in plain language, tried each version myself and asked for changes when something felt off. The map was too cluttered at first, then too grey and boring, and the animation felt rushed. Some features came from just using the app, like wanting to race with my own bike instead of a Bysykkel. The AI wrote and tested the code, while I decided what to build and manually tested and commited any changes.
 
 ## Testing
 
